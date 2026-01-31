@@ -3,6 +3,9 @@ title: 'Appendix: Data Quality Checks'
 author: ''
 date: "`r Sys.Date()`"
 output:
+  pdf_document:
+    toc: true
+    toc_depth: '3'
   html_document:
     toc: true
     toc_depth: 3
@@ -10,9 +13,6 @@ output:
     number_sections: true
     theme: cosmo
     highlight: tango
-  pdf_document:
-    toc: true
-    toc_depth: '3'
 ---
 
 ```{r setup, include=FALSE}
@@ -103,7 +103,7 @@ for (var in feeling_vars) {
 
 ## Recompute Emotional Positivity Rankings
 
-The platform-generated `feeling_DO` variables do not reflect the true ordering of emotional positivity. Here we recompute rankings based on the raw feeling scores and overwrite the original ranking variables.
+The platform-generated `feeling_DO` variables do not reflect the true ordering of emotional positivity. Here I recompute rankings based on the raw feeling scores and overwrite the original ranking variables.
 
 ```{r recompute-rankings}
 # Raw feeling score variables (used to compute rankings)
@@ -142,7 +142,7 @@ for (i in 1:n) {
 
 ## Handle Outcome Ordering for Binary Choice Questions
 
-Randomization order doesn't match, so we create binary indicators for each choice option.
+Randomization order doesn't match, so I create binary indicators for each choice option.
 
 ### Binary Choice 1: I apologize first vs. Neither apologizes
 
@@ -232,7 +232,7 @@ sapply(processed_data, count_na)
 ## Save Processed Data
 ## Ready to get into 01_Clean Data
 ## The purpose here is to drop invalid observations
-## The purpose of the next step, 01_Clean Data, is to drop the variables we need
+## The purpose of the next step, 01_Clean Data, is to drop the variables I need
 
 ```{r save-processed}
 save(
@@ -244,11 +244,11 @@ save(
 # Section B: Within- vs Between-Subject Structure 
 ## (some code adapted from 02_descriptive_analysis)
 
-Here, we use response patterns (i.e., non-missing values) to confirm that the observed data structure aligns with the intended survey design.
+Here, I use response patterns (i.e., non-missing values) to confirm that the observed data structure aligns with the intended survey design.
 
 ## Feeling Ratings: Within-Subject
 
-To verify this, we count the number of non-missing responses for each feeling variable. The presence of valid responses across multiple conditions for the same participants confirms a within-subject design. We also inspect basic descriptive statistics for these variables.
+To verify this, I count the number of non-missing responses for each feeling variable. The presence of valid responses across multiple conditions for the same participants confirms a within-subject design. I also inspect basic descriptive statistics for these variables.
 
 ```{r feeling-within-subject}
 feeling_vars <- c(
@@ -277,7 +277,7 @@ print(feeling_complete_n)
 
 Self-blame is treated as a stable, individual-level characteristic and is used to classify participants into high vs. low self-blame groups. Each participant should belong to exactly one group, indicating a between-subject structure.
 
-To confirm this, we inspect the distribution of the self-blame grouping variable and verify that each observation is assigned to a single category.
+To confirm this, I inspect the distribution of the self-blame grouping variable and verify that each observation is assigned to a single category.
 
 ```{r self-blame-between}
 table(clean_data$high_blame)
