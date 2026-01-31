@@ -17,9 +17,9 @@ Does who apologizes first affect emotional positivity, and does this effect diff
 The full write-up (including data cleaning decisions, analysis, results, and figures) is available as a PDF:
 
 - **Main write-up (PDF)**  
-  `Behavioral Science and Marketing_data_task/writeup.pdf`
+[  `Behavioral Science and Marketing_data_task/writeup.pdf`](https://drive.google.com/file/d/1sUA-EbFTfwsLKK4i8Il-R-Bb64NkDPUl/view?usp=sharing)
 
-(Alternatively, see the rendered HTML outputs in the `output/html/` directory.)
+
 
 ---
 
