@@ -1,0 +1,473 @@
+---
+title: "Hypothesis Tests: Self-Blame and Apology"
+author: "Analysis Report"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: flatly
+    code_folding: show
+  pdf_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+# Setup
+
+## Load Libraries
+
+```{r libraries}
+library(dplyr)
+library(broom)
+```
+
+## Define Paths
+
+```{r paths}
+root       <- "/Users/pei-chin/Research/Behavioral Science and Marketing_data_task"
+data_clean <- file.path(root, "data_clean")
+output     <- file.path(root, "output")
+figures    <- file.path(output, "figures")
+```
+
+## Load Data
+
+```{r load-data}
+load(file.path(data_clean, "clean_data.RData"))
+```
+
+## Check Variable Types
+
+```{r check-vars}
+str(clean_data$high_blame)
+str(clean_data$feelings_youalone)
+```
+
+---
+
+# Hypothesis 1
+
+**H1:** In the "you apologize alone" scenario, individuals high in self-blame experience higher emotional positivity than those low in self-blame.
+
+## Extract Data for Low and High Self-Blame Groups
+
+```{r h1-extract}
+y0 <- clean_data$feelings_youalone[clean_data$high_blame == 0]
+y1 <- clean_data$feelings_youalone[clean_data$high_blame == 1]
+```
+
+## Quick Data Check
+
+```{r h1-check}
+length(y0); length(y1)
+sum(is.na(y0)); sum(is.na(y1))
+```
+
+## Descriptive Statistics
+
+```{r h1-descriptives}
+mean(y0)
+mean(y1)
+mean(y1) - mean(y0)
+```
+
+## Welch's t-test
+
+Run Welch's t-test (unequal variances assumed):
+
+```{r h1-ttest}
+tt_H1 <- t.test(y1, y0, var.equal = FALSE)
+tt_H1
+```
+
+## Effect Size Calculation
+
+Calculate effect size using Hedges' g for better small sample correction:
+
+```{r h1-effect-size}
+n0 <- length(y0); n1 <- length(y1)
+m0 <- mean(y0);   m1 <- mean(y1)
+sd0 <- sd(y0);    sd1 <- sd(y1)
+
+# Pooled standard deviation
+sp <- sqrt(((n0 - 1)*sd0^2 + (n1 - 1)*sd1^2) / (n0 + n1 - 2))
+
+# Cohen's d
+d  <- (m1 - m0) / sp
+
+# Small sample correction factor
+J  <- 1 - (3 / (4*(n0 + n1) - 9))
+
+# Hedges' g
+g  <- J * d
+
+effect_H1 <- c(
+  n_low     = n0,
+  n_high    = n1,
+  mean_low  = m0,
+  mean_high = m1,
+  mean_diff = m1 - m0,
+  cohen_d   = d,
+  hedges_g  = g
+)
+
+effect_H1
+```
+
+## Save H1 Results
+
+```{r h1-save}
+H1_summary <- data.frame(
+  hypothesis = "H1",
+  scenario   = "feelings_youalone",
+  n_low      = n0,
+  n_high     = n1,
+  mean_low   = m0,
+  mean_high  = m1,
+  mean_diff  = m1 - m0,
+  t_value    = as.numeric(tt_H1$statistic),
+  df         = as.numeric(tt_H1$parameter),
+  p_value    = tt_H1$p.value,
+  ci_low     = tt_H1$conf.int[1],
+  ci_high    = tt_H1$conf.int[2],
+  hedges_g   = g
+)
+
+write.csv(
+  H1_summary,
+  file.path(output, "H1_ttest_hedges_g.csv"),
+  row.names = FALSE
+)
+
+knitr::kable(H1_summary, digits = 3, caption = "H1 Summary Results")
+```
+
+---
+
+# Exploratory Analysis
+
+## Robustness Check Across Scenarios
+
+Test if the pattern holds in other apology scenarios.
+
+```{r exploratory-setup}
+feeling_vars <- c(
+  "feelings_youalone",
+  "feelings_bothyoufirst",
+  "feelings_themalone",
+  "feelings_boththemfirst",
+  "feelings_neither",
+  "feelings_youaloneforgiven"
+)
+```
+
+### Helper Function
+
+```{r helper-function}
+run_welch_effect <- function(data, outcome, group_var = "high_blame") {
+  
+  y0 <- data[[outcome]][data[[group_var]] == 0]
+  y1 <- data[[outcome]][data[[group_var]] == 1]
+  
+  # Remove missing values
+  y0 <- na.omit(y0)
+  y1 <- na.omit(y1)
+  
+  n0 <- length(y0); n1 <- length(y1)
+  m0 <- mean(y0);   m1 <- mean(y1)
+  sd0 <- sd(y0);    sd1 <- sd(y1)
+  
+  # Run the test
+  tt <- t.test(y1, y0, var.equal = FALSE)
+  
+  # Effect size calculation
+  sp <- sqrt(((n0 - 1)*sd0^2 + (n1 - 1)*sd1^2) / (n0 + n1 - 2))
+  d  <- (m1 - m0) / sp
+  J  <- 1 - (3 / (4*(n0 + n1) - 9))
+  g  <- J * d
+  
+  # Return a data frame with all the info
+  data.frame(
+    scenario   = outcome,
+    n_low      = n0,
+    n_high     = n1,
+    mean_low   = m0,
+    mean_high  = m1,
+    mean_diff  = m1 - m0,
+    t_value    = as.numeric(tt$statistic),
+    df         = as.numeric(tt$parameter),
+    p_value    = tt$p.value,
+    ci_low     = tt$conf.int[1],
+    ci_high    = tt$conf.int[2],
+    hedges_g   = g
+  )
+}
+```
+
+### Run Tests Across All Scenarios
+
+```{r exploratory-run}
+results_table <- do.call(
+  rbind,
+  lapply(feeling_vars, function(v) {
+    run_welch_effect(clean_data, v)
+  })
+)
+
+knitr::kable(results_table, digits = 3, caption = "T-tests Across All Scenarios")
+```
+
+### Save Exploratory Results
+
+```{r exploratory-save}
+write.csv(
+  results_table,
+  file.path(output, "exploratory_ttests_all_scenarios.csv"),
+  row.names = FALSE
+)
+```
+
+---
+
+# Hypothesis 2
+
+**H2:** The emotional difference between "other apologizes first" and "self apologizes first" differs by self-blame level (testing for an interaction effect).
+
+## Create Difference Score
+
+How much better do people feel when the other person apologizes first?
+
+```{r h2-difference}
+clean_data <- clean_data %>%
+  mutate(
+    either_first_feeling =
+      feelings_boththemfirst - feelings_bothyoufirst
+  )
+```
+
+## T-test on Difference Score
+
+Test if this difference varies by self-blame group:
+
+```{r h2-ttest}
+tt_H2 <- t.test(
+  either_first_feeling ~ high_blame,
+  data = clean_data,
+  var.equal = FALSE
+)
+
+tt_H2
+```
+
+## Effect Size Calculation
+
+```{r h2-effect-size}
+# Extract difference scores for both groups
+diff0 <- clean_data$either_first_feeling[clean_data$high_blame == 0]
+diff1 <- clean_data$either_first_feeling[clean_data$high_blame == 1]
+
+# Remove NA values
+diff0 <- na.omit(diff0)
+diff1 <- na.omit(diff1)
+
+# Calculate descriptive statistics
+n0_h2 <- length(diff0)
+n1_h2 <- length(diff1)
+m0_h2 <- mean(diff0)
+m1_h2 <- mean(diff1)
+sd0_h2 <- sd(diff0)
+sd1_h2 <- sd(diff1)
+
+# Calculate pooled standard deviation
+sp_h2 <- sqrt(((n0_h2 - 1)*sd0_h2^2 + (n1_h2 - 1)*sd1_h2^2) / (n0_h2 + n1_h2 - 2))
+
+# Cohen's d
+d_h2 <- (m1_h2 - m0_h2) / sp_h2
+
+# Hedges' g (small sample correction)
+J_h2 <- 1 - (3 / (4*(n0_h2 + n1_h2) - 9))
+g_h2 <- J_h2 * d_h2
+
+cat("Cohen's d:", round(d_h2, 3), "\n")
+cat("Hedges' g:", round(g_h2, 3), "\n")
+```
+
+## Save H2 Results
+
+```{r h2-save}
+H2_summary <- data.frame(
+  hypothesis = "H2",
+  outcome    = "other_first_minus_self_first",
+  n_low      = n0_h2,
+  n_high     = n1_h2,
+  mean_low   = m0_h2,
+  mean_high  = m1_h2,
+  mean_diff  = m1_h2 - m0_h2,
+  t_value    = as.numeric(tt_H2$statistic),
+  df         = as.numeric(tt_H2$parameter),
+  p_value    = tt_H2$p.value,
+  ci_low     = tt_H2$conf.int[1],
+  ci_high    = tt_H2$conf.int[2],
+  hedges_g   = g_h2
+)
+
+write.csv(
+  H2_summary,
+  file.path(output, "H2_difference_ttest.csv"),
+  row.names = FALSE
+)
+
+knitr::kable(H2_summary, digits = 3, caption = "H2 Summary Results")
+```
+
+---
+
+# Hypothesis 3
+
+**H3:** People who are more sensitive to the order of apologies feel less emotionally positive even when apologies are mutual, and this pattern differs between high and low self-blame individuals.
+
+## Compute Variables
+
+```{r h3-variables}
+clean_data <- clean_data %>%
+  mutate(
+    mean_mutual = rowMeans(
+      cbind(feelings_bothyoufirst, feelings_boththemfirst),
+      na.rm = TRUE
+    ),
+    order_sensitivity =
+      abs(feelings_bothyoufirst - feelings_boththemfirst)
+  )
+```
+
+## Regression with Interaction Term
+
+```{r h3-regression}
+model_H3 <- lm(
+  mean_mutual ~ order_sensitivity * high_blame,
+  data = clean_data
+)
+
+summary(model_H3)
+```
+
+## Effect Size Calculation
+
+```{r h3-effect-size}
+# Get R-squared for full model
+r2_full <- summary(model_H3)$r.squared
+
+# Fit model without interaction term
+model_H3_no_interaction <- lm(
+  mean_mutual ~ order_sensitivity + high_blame,
+  data = clean_data
+)
+r2_no_interaction <- summary(model_H3_no_interaction)$r.squared
+
+# Partial R-squared for interaction
+partial_r2_interaction <- r2_full - r2_no_interaction
+
+# Cohen's f for interaction
+cohens_f_interaction <- sqrt(partial_r2_interaction / (1 - r2_full))
+
+cat("R² (full model):", round(r2_full, 4), "\n")
+cat("R² (without interaction):", round(r2_no_interaction, 4), "\n")
+cat("Partial R² (interaction):", round(partial_r2_interaction, 4), "\n")
+cat("Cohen's f (interaction):", round(cohens_f_interaction, 4), "\n")
+```
+
+## Standardized Coefficients
+
+```{r h3-standardized}
+clean_data_std <- clean_data %>%
+  mutate(
+    order_sensitivity_std = scale(order_sensitivity)[,1],
+    mean_mutual_std = scale(mean_mutual)[,1]
+  )
+
+model_H3_std <- lm(
+  mean_mutual_std ~ order_sensitivity_std * high_blame,
+  data = clean_data_std
+)
+
+summary(model_H3_std)
+```
+
+## Save H3 Results
+
+```{r h3-save}
+H3_coefficients <- tidy(model_H3) %>%
+  mutate(
+    std_estimate = coef(model_H3_std)
+  )
+
+H3_model_fit <- glance(model_H3) %>%
+  mutate(
+    partial_r2_interaction = partial_r2_interaction,
+    cohens_f_interaction = cohens_f_interaction
+  )
+
+write.csv(
+  H3_coefficients,
+  file.path(output, "H3_regression_coefficients.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  H3_model_fit,
+  file.path(output, "H3_regression_model_fit.csv"),
+  row.names = FALSE
+)
+
+knitr::kable(H3_coefficients, digits = 3, caption = "H3 Regression Coefficients")
+knitr::kable(H3_model_fit, digits = 4, caption = "H3 Model Fit Statistics")
+```
+
+---
+
+# Summary
+
+## Effect Sizes for All Hypotheses
+
+```{r summary-table}
+effect_size_summary <- data.frame(
+  hypothesis = c("H1", "H2", "H3"),
+  effect_type = c("Hedges' g", "Hedges' g", "Cohen's f (interaction)"),
+  effect_size = c(g, g_h2, cohens_f_interaction),
+  interpretation = c(
+    ifelse(abs(g) < 0.2, "negligible",
+           ifelse(abs(g) < 0.5, "small",
+                  ifelse(abs(g) < 0.8, "medium", "large"))),
+    ifelse(abs(g_h2) < 0.2, "negligible",
+           ifelse(abs(g_h2) < 0.5, "small",
+                  ifelse(abs(g_h2) < 0.8, "medium", "large"))),
+    ifelse(abs(cohens_f_interaction) < 0.1, "small",
+           ifelse(abs(cohens_f_interaction) < 0.25, "medium", "large"))
+  )
+)
+
+write.csv(
+  effect_size_summary,
+  file.path(output, "all_hypotheses_effect_sizes.csv"),
+  row.names = FALSE
+)
+
+knitr::kable(effect_size_summary, digits = 3, caption = "Effect Size Summary for All Hypotheses")
+```
+
+---
+
+# Session Information
+
+```{r session-info}
+sessionInfo()
+```

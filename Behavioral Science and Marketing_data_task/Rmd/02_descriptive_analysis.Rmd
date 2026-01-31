@@ -1,0 +1,230 @@
+---
+title: '02: Descriptive Analysis'
+author: ''
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+    theme: cosmo
+    highlight: tango
+  pdf_document:
+    toc: true
+    toc_depth: '3'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6
+)
+```
+
+# Setup
+
+## Load Libraries
+
+```{r libraries}
+library(ggplot2)
+library(patchwork)
+library(tidyr)
+library(dplyr)
+```
+
+## Set File Paths
+
+```{r paths}
+root <- "/Users/pei-chin/Research/Behavioral Science and Marketing_data_task"
+
+data_clean <- file.path(root, "data_clean")
+output     <- file.path(root, "output")
+figures    <- file.path(output, "figures")
+```
+
+## Load Clean Data
+
+```{r load-data}
+load(file.path(data_clean, "clean_data.RData"))
+```
+
+# Variable Check
+
+## Define Feeling Variables
+
+```{r feeling-vars}
+feeling_vars <- c(
+  "feelings_youalone",
+  "feelings_bothyoufirst",
+  "feelings_themalone",
+  "feelings_boththemfirst",
+  "feelings_neither",
+  "feelings_youaloneforgiven"
+)
+```
+
+## Summary Statistics for Feeling Variables
+
+```{r feeling-summary}
+summary(clean_data[, feeling_vars])
+```
+
+## Check Sample Sizes
+
+Check how many people are in the high self-blame group (blame_1 > 50 = high-self group).
+
+```{r sample-sizes}
+feeling_complete_n <- sapply(
+  feeling_vars,
+  function(var) sum(!is.na(clean_data[[var]]))
+)
+
+print(feeling_complete_n)
+```
+
+```{r blame-distribution}
+table(clean_data$high_blame)
+```
+
+## Feeling Ratings by Self-Blame Group
+
+```{r feelings-by-blame}
+by(
+  clean_data[, feeling_vars],
+  clean_data$high_blame,
+  summary
+)
+```
+
+## Binary Choice Preferences
+
+### First Set of Binary Choice Questions
+
+```{r binary-choice-1}
+# Participants who prefer apologizing first
+sum(clean_data$prefer_I_apologize_first)
+
+# Participants who prefer neither option
+sum(clean_data$prefer_Neither_I_nor)
+```
+
+### Second Set of Binary Choice Questions
+
+```{r binary-choice-2}
+# Participants who prefer apologizing alone
+sum(clean_data$prefer_feelings_youalone)
+
+# Participants who prefer neither option
+sum(clean_data$prefer__Neither_I_nor_2)
+```
+
+## Preferences by Self-Blame Group
+
+### First Preference Set
+
+```{r preferences-by-blame-1}
+clean_data %>%
+  group_by(high_blame) %>%
+  summarise(
+    I_apologize_first_1 = sum(prefer_I_apologize_first, na.rm = TRUE),
+    Neither_1           = sum(prefer_Neither_I_nor, na.rm = TRUE),
+    n                   = n()
+  )
+```
+
+### Second Preference Set
+
+Used to check whether patterns are consistent.
+
+```{r preferences-by-blame-2}
+clean_data %>%
+  group_by(high_blame) %>%
+  summarise(
+    I_apologize_alone_2 = sum(prefer_feelings_youalone, na.rm = TRUE),
+    Neither_2           = sum(prefer__Neither_I_nor_2, na.rm = TRUE),
+    n                   = n()
+  )
+```
+
+# Visualization
+
+## Prepare Data for Plotting
+
+```{r prep-plot-data}
+# Overall data
+plot_data_all <- clean_data %>%
+  select(all_of(feeling_vars)) %>%
+  pivot_longer(
+    cols      = all_of(feeling_vars),
+    names_to  = "scenario",
+    values_to = "feeling"
+  )
+
+# Grouped by blame level
+plot_data_group <- clean_data %>%
+  select(high_blame, all_of(feeling_vars)) %>%
+  pivot_longer(
+    cols      = all_of(feeling_vars),
+    names_to  = "scenario",
+    values_to = "feeling"
+  )
+```
+
+## Create Plots
+
+### Overall Distribution
+
+```{r plot-overall}
+p1 <- ggplot(plot_data_all, aes(x = scenario, y = feeling)) +
+  geom_boxplot(outlier.alpha = 0.3) +
+  labs(
+    title = "Overall Distribution",
+    x     = "Apology scenario",
+    y     = "Emotional positivity"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+### Distribution by Self-Blame Group
+
+```{r plot-by-group}
+p2 <- ggplot(plot_data_group, aes(
+  x    = scenario,
+  y    = feeling,
+  fill = factor(high_blame)
+)) +
+  geom_boxplot(outlier.alpha = 0.3) +
+  labs(
+    title = "Grouped by Self-Blame",
+    x     = "Apology scenario",
+    y     = "Emotional positivity",
+    fill  = "High self-blame"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+### Combined Plot
+
+```{r combined-plot, fig.width=12, fig.height=6}
+p_all <- p1 + p2 + plot_layout(guides = "collect")
+p_all
+```
+
+## Save Figure
+
+```{r save-figure}
+ggsave(
+  filename = file.path(figures, "feeling_distribution.png"),
+  plot     = p_all
+)
+```

@@ -1,0 +1,2 @@
+"hypothesis","outcome","n_low","n_high","mean_low","mean_high","mean_diff","t_value","df","p_value","ci_low","ci_high","hedges_g"
+"H2","other_first_minus_self_first",35,10,10.9142857142857,4.9,-6.01428571428571,1.27678387058887,16.6315538679345,0.219218051158978,-3.94079077109071,15.9693621996621,-0.41318737516101

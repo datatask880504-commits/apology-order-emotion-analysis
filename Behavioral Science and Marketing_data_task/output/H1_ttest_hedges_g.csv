@@ -1,0 +1,2 @@
+"hypothesis","scenario","n_low","n_high","mean_low","mean_high","mean_diff","t_value","df","p_value","ci_low","ci_high","hedges_g"
+"H1","feelings_youalone",35,10,-20.8857142857143,-9.5,11.3857142857143,2.29100619769095,11.4479174003772,0.0418337990373309,0.499371678874864,22.2720568925537,1.00227214065335

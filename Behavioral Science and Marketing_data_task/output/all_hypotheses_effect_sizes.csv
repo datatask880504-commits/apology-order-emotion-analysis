@@ -1,0 +1,4 @@
+"hypothesis","effect_type","effect_size","interpretation"
+"H1","Hedges' g",1.00227214065335,"large"
+"H2","Hedges' g",-0.41318737516101,"small"
+"H3","Cohen's f (interaction)",0.073071275429709,"small"
